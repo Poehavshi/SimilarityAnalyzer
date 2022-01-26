@@ -1,6 +1,7 @@
 package com.example.similarityanalyzer.controller;
 
 import com.example.similarityanalyzer.service.SimilarityService;
+import gnu.trove.list.array.TIntArrayList;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,11 +20,11 @@ public class SimilarityController {
     }
 
     @GetMapping(value = "/pages")
-    public ResponseEntity<List<Integer>> readUniquePages() {
-        final List<Integer> clients = similarityService.readUniquePages();
+    public ResponseEntity<TIntArrayList> readUniquePages() {
+        final TIntArrayList pages = similarityService.readUniquePages();
 
-        return clients != null &&  !clients.isEmpty()
-                ? new ResponseEntity<>(clients, HttpStatus.OK)
+        return pages != null &&  !pages.isEmpty()
+                ? new ResponseEntity<>(pages, HttpStatus.OK)
                 : new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
