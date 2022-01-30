@@ -1,5 +1,6 @@
 package com.example.similarityanalyzer.service;
 
+import gnu.trove.map.hash.TIntByteHashMap;
 import gnu.trove.map.hash.TLongIntHashMap;
 
 import java.io.*;
@@ -9,12 +10,14 @@ public class PreprocessingServiceImpl implements PreprocessingService {
 
     private final String _pathToInputFile;
     private final String _pathToOutputFile;
-    private final String _pathToUniqueUIDsFile;
+    private final String _pathToUniquePagesFile;
 
-    public PreprocessingServiceImpl(String pathToInputFile, String pathToOutputFile, String pathToUniqueUIDsFile) {
+    private static final String COMMA_DELIMITER = ",";
+
+    public PreprocessingServiceImpl(String pathToInputFile, String pathToOutputFile, String pathToUniquePagesFile) {
         _pathToInputFile = pathToInputFile;
         _pathToOutputFile = pathToOutputFile;
-        _pathToUniqueUIDsFile = pathToUniqueUIDsFile;
+        _pathToUniquePagesFile = pathToUniquePagesFile;
     }
 
     /**
@@ -78,27 +81,34 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         }
     }
 
-    private void createFileWithUniqueUIDs() throws IOException{
-        TLongIntHashMap uniqueUIDs = new TLongIntHashMap();
+    private void createFileWithUniquePages() throws IOException {
+        TIntByteHashMap uniquePages = new TIntByteHashMap();
+        long uid = 0;
+        int page = 0;
+        int timestamp = 0;
         FileInputStream inputStream = null;
         Scanner scanner = null;
-        BufferedWriter out = null;
+        FileOutputStream outputStream = null;
         try {
             inputStream = new FileInputStream(_pathToInputFile);
-            out = new BufferedWriter(new FileWriter(_pathToUniqueUIDsFile));
             scanner = new Scanner(inputStream);
-            scanner.useDelimiter(",");
-            long uid;
+            outputStream = new FileOutputStream(_pathToUniquePagesFile);
             while (scanner.hasNextLine()) {
-                uid = scanner.nextLong();
-                if (!uniqueUIDs.containsKey(uid)) {
-                    uniqueUIDs.put(uid,0);
-                    out.write(uid + "\n");
+                String line = scanner.nextLine();
+                try (Scanner rowScanner = new Scanner(line)) {
+                    rowScanner.useDelimiter(COMMA_DELIMITER);
+                    while (rowScanner.hasNext()) {
+                        uid = rowScanner.nextLong();
+                        page = rowScanner.nextInt();
+                        timestamp = rowScanner.nextInt();
+                        if (!uniquePages.containsKey(page)) {
+                            uniquePages.put(page,(byte) 1);
+                            String newLine = page + "\n";
+                            byte[] strToBytes = newLine.getBytes();
+                            outputStream.write(strToBytes);
+                        }
+                    }
                 }
-                for (int i = 0;i<2;i++) scanner.nextInt();
-            }
-            if (scanner.ioException() != null) {
-                throw scanner.ioException();
             }
         } finally {
             if (inputStream != null) {
@@ -107,8 +117,8 @@ public class PreprocessingServiceImpl implements PreprocessingService {
             if (scanner != null) {
                 scanner.close();
             }
-            if (out != null){
-                out.close();
+            if (outputStream != null){
+                outputStream.close();
             }
         }
     }
@@ -119,7 +129,7 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         try {
             maxLengthOfRow = findMaxLengthOfRow();
             normalizeLengthOfRows(maxLengthOfRow);
-            createFileWithUniqueUIDs();
+            createFileWithUniquePages();
             return maxLengthOfRow;
         }
         catch (IOException exception){
