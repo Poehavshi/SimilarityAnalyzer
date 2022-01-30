@@ -2,9 +2,7 @@ package com.example.similarityanalyzer.service;
 
 import gnu.trove.list.array.TIntArrayList;
 
-import java.util.List;
-
-public interface SimilarityService {
+public interface ProcessingService {
     /**
      * Returns all unique page field values found in the log.
      * @return list of unique pages
