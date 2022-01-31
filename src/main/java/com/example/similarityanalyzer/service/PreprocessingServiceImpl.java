@@ -1,6 +1,6 @@
 package com.example.similarityanalyzer.service;
 
-import gnu.trove.map.hash.TIntByteHashMap;
+import gnu.trove.set.hash.TIntHashSet;
 import gnu.trove.set.hash.TLongHashSet;
 
 import java.io.*;
@@ -52,6 +52,7 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         return maxLineLength;
     }
 
+
     private void normalizeLengthOfRows(int lengthToNormalize, String pathToInputFile, String pathToOutputFile) throws IOException {
         try (Scanner scanner = new Scanner(new FileInputStream(pathToInputFile));
              FileOutputStream outputStream = new FileOutputStream(pathToOutputFile)) {
@@ -68,9 +69,8 @@ public class PreprocessingServiceImpl implements PreprocessingService {
     }
 
     private void createFilesWithUniqueFields() throws IOException {
-        // !FIXME Use hashSet instead of HashMap
-        TIntByteHashMap uniquePages = new TIntByteHashMap();
-        TIntByteHashMap uniqueTimestamps = new TIntByteHashMap();
+        TIntHashSet uniquePages = new TIntHashSet();
+        TIntHashSet uniqueTimestamps = new TIntHashSet();
         int page;
         int timestamp;
 
@@ -78,7 +78,6 @@ public class PreprocessingServiceImpl implements PreprocessingService {
              Scanner scanner = new Scanner(inputStream);
              FileOutputStream outputStream = new FileOutputStream(_pathToUniquePagesFile);
              FileOutputStream timestampsOutputStream = new FileOutputStream(_pathToUniqueTimestampsFile)) {
-            int lineNumber = 0;
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
                 try (Scanner rowScanner = new Scanner(line)) {
@@ -87,21 +86,20 @@ public class PreprocessingServiceImpl implements PreprocessingService {
                         rowScanner.nextLong();
                         page = rowScanner.nextInt();
                         timestamp = rowScanner.nextInt();
-                        if (!uniquePages.containsKey(page)) {
-                            uniquePages.put(page, (byte) 1);
+                        if (!uniquePages.contains(page)) {
+                            uniquePages.add(page);
                             String newLine = page + "\n";
                             byte[] strToBytes = newLine.getBytes();
                             outputStream.write(strToBytes);
                         }
-                        if (!uniqueTimestamps.containsKey(timestamp)) {
-                            uniqueTimestamps.put(timestamp, (byte) 1);
-                            String newLine = lineNumber + "," + timestamp + "\n";
+                        if (!uniqueTimestamps.contains(timestamp)) {
+                            uniqueTimestamps.add(timestamp);
+                            String newLine = timestamp + "\n";
                             byte[] strToBytes = newLine.getBytes();
                             timestampsOutputStream.write(strToBytes);
                         }
                     }
                 }
-                lineNumber++;
             }
         }
     }
@@ -134,28 +132,31 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         long uid = 0;
         int currentPage = 0;
         int currentTimestamp = 0, prevTimestamp = 0;
-
-        try (FileInputStream inputStream = new FileInputStream(_pathToInputFile);
-             Scanner scanner = new Scanner(inputStream);
-             FileOutputStream outputStream = new FileOutputStream(_pathToOLAP + "individual/" + page + ".csv")) {
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                try (Scanner rowScanner = new Scanner(line)) {
-                    rowScanner.useDelimiter(COMMA_DELIMITER);
-                    while (rowScanner.hasNext()) {
-                        uid = rowScanner.nextLong();
-                        currentPage = rowScanner.nextInt();
-                        currentTimestamp = rowScanner.nextInt();
-                    }
-                    if (currentTimestamp != prevTimestamp) {
-                        String newLine = currentTimestamp + "," + uniqueUIDs + "\n";
-                        byte[] strToBytes = newLine.getBytes();
-                        outputStream.write(strToBytes);
-                        uniqueUIDs = new TLongHashSet();
-                    }
-                    prevTimestamp = currentTimestamp;
-                    if (page == currentPage && !uniqueUIDs.contains(uid)) {
-                        uniqueUIDs.add(uid);
+        if (new File(_pathToOLAP + "individual/" + page + "/").mkdirs()) {
+            try (FileInputStream inputStream = new FileInputStream(_pathToInputFile);
+                 Scanner scanner = new Scanner(inputStream)) {
+                while (scanner.hasNextLine()) {
+                    String line = scanner.nextLine();
+                    try (Scanner rowScanner = new Scanner(line)) {
+                        rowScanner.useDelimiter(COMMA_DELIMITER);
+                        while (rowScanner.hasNext()) {
+                            uid = rowScanner.nextLong();
+                            currentPage = rowScanner.nextInt();
+                            currentTimestamp = rowScanner.nextInt();
+                        }
+                        if (currentTimestamp != prevTimestamp) {
+                            try (FileOutputStream fileOutputStream = new FileOutputStream(_pathToOLAP + "individual/" + page + "/" + currentTimestamp);
+                                 ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream)) {
+                                uniqueUIDs.writeExternal(objectOutputStream);
+                                uniqueUIDs = new TLongHashSet();
+                            } catch (Exception exception) {
+                                exception.printStackTrace();
+                            }
+                        }
+                        prevTimestamp = currentTimestamp;
+                        if (page == currentPage && !uniqueUIDs.contains(uid)) {
+                            uniqueUIDs.add(uid);
+                        }
                     }
                 }
             }
@@ -163,18 +164,15 @@ public class PreprocessingServiceImpl implements PreprocessingService {
     }
 
     public void createCountOLAP() throws IOException {
-        boolean success = new File(_pathToOLAP + "individual/").mkdirs();
-        try (Scanner scanner = new Scanner(new FileInputStream(_pathToUniquePagesFile))) {
-            while (scanner.hasNext()) {
-                int page = scanner.nextInt();
-                createUniqueUIDsOfIndividualPage(page);
-//                int lengthOfRow = findMaxLengthOfRow(_pathToOLAP + "individual/" + page + ".csv");
-//                normalizeLengthOfRows(lengthOfRow, _pathToOLAP + "individual/" + page + ".csv", _pathToOLAP + "individual/" + page + "n" + ".csv");
-//                File file = new File(_pathToOLAP + "individual/" + page + ".csv");
-//                file.delete();
-            }
-            if (scanner.ioException() != null) {
-                throw scanner.ioException();
+        if (new File(_pathToOLAP + "individual/").mkdirs()) {
+            try (Scanner scanner = new Scanner(new FileInputStream(_pathToUniquePagesFile))) {
+                while (scanner.hasNext()) {
+                    int page = scanner.nextInt();
+                    createUniqueUIDsOfIndividualPage(page);
+                }
+                if (scanner.ioException() != null) {
+                    throw scanner.ioException();
+                }
             }
         }
     }

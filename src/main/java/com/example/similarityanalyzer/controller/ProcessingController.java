@@ -8,7 +8,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.print.attribute.standard.Media;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -20,31 +19,37 @@ public class ProcessingController {
     @Autowired
     public ProcessingController(ProcessingService processingService) {
         this.processingService = processingService;
+        try {
+            processingService.readUniquePages();
+            processingService.preProcessUniqueTimestamps();
+        }
+        catch (IOException exception) {
+            System.err.println(exception.getMessage());
+        }
     }
 
     @GetMapping(value = "/pages")
     public ResponseEntity<ArrayList<Integer>> readUniquePages() {
-        ArrayList<Integer> pages = null;
-        try {
-            pages = processingService.readUniquePages();
-        }
-        catch (IOException exception){
-            System.err.println(exception.getMessage());
-        }
+        ArrayList<Integer> pages;
+        pages = processingService.getUniquePages();
+
         return pages != null &&  !pages.isEmpty()
                 ? new ResponseEntity<>(pages, HttpStatus.OK)
                 : new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
-
-
 
     @GetMapping(value = "/similarity")
     public ResponseEntity<Double> getSimilarity(@RequestParam int page1,
                                                 @RequestParam int page2,
                                                 @RequestParam int from,
                                                 @RequestParam int to) {
-
-        return new ResponseEntity<>(processingService.getSimilarity(page1, page2, from, to), HttpStatus.OK);
+        double similarity = -1;
+        try {
+            similarity = processingService.getSimilarity(page1, page2, from, to);
+        } catch (IOException exception){
+            System.err.println(exception.getMessage());
+        }
+        return new ResponseEntity<>(similarity, HttpStatus.OK);
     }
 
 
