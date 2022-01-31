@@ -9,6 +9,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.*;
+import java.util.Scanner;
 
 
 @SpringBootApplication
@@ -20,21 +21,15 @@ public class SimilarityAnalyzerApplication {
                 "test_uid_page_timestamp_new.sorted.csv",
                 "test_unique_pages.csv",
                 "test_unique_timestamps.csv",
-                "test_unique_timestamps_normalized.csv"
+                "test_unique_timestamps_normalized.csv",
+                "test_OLAP/"
         );
         preprocessingService.preprocess();
         SpringApplication.run(SimilarityAnalyzerApplication.class, args);
     }
 
-    public static void testTIntArrayList(){
-        TIntArrayList pages = new TIntArrayList();
-        pages.add(1);
-        pages.add(2);
-        System.out.println(pages);
-    }
-
     public static void main(String[] args) {
-        testTIntArrayList();
+
         run(args);
     }
 

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.print.attribute.standard.Media;
+import java.io.IOException;
 import java.util.ArrayList;
 
 @RestController
@@ -22,12 +23,14 @@ public class ProcessingController {
     }
 
     @GetMapping(value = "/pages")
-    public ResponseEntity<TIntArrayList> readUniquePages() {
-        // !FIXME TIntArrayList not convert to json or plaint_text_value or anything else
-        //final TIntArrayList pages = processingService.readUniquePages();
-        TIntArrayList pages = new TIntArrayList();
-        pages.add(1);
-        pages.add(2);
+    public ResponseEntity<ArrayList<Integer>> readUniquePages() {
+        ArrayList<Integer> pages = null;
+        try {
+            pages = processingService.readUniquePages();
+        }
+        catch (IOException exception){
+            System.err.println(exception.getMessage());
+        }
         return pages != null &&  !pages.isEmpty()
                 ? new ResponseEntity<>(pages, HttpStatus.OK)
                 : new ResponseEntity<>(HttpStatus.NOT_FOUND);

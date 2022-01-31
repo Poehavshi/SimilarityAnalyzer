@@ -1,18 +1,29 @@
 package com.example.similarityanalyzer.service;
 
-import gnu.trove.list.array.TIntArrayList;
+
 import org.springframework.stereotype.Service;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Scanner;
 
 
 @Service
 public class ProcessingServiceImpl implements ProcessingService {
     @Override
-    public TIntArrayList readUniquePages() {
-        // !TODO Create reading unique pages from file
-        TIntArrayList list = new TIntArrayList();
-        list.add(1);
-        list.add(2);
-        return list;
+    public ArrayList<Integer> readUniquePages() throws IOException {
+        ArrayList<Integer> pages = new ArrayList<>();
+        try (Scanner scanner = new Scanner(new FileInputStream("test_unique_pages.csv"))) {
+            while (scanner.hasNext()) {
+                int page = scanner.nextInt();
+                pages.add(page);
+            }
+            if (scanner.ioException() != null) {
+                throw scanner.ioException();
+            }
+            return pages;
+        }
     }
 
     @Override

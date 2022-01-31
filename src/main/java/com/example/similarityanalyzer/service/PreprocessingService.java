@@ -9,7 +9,7 @@ public interface PreprocessingService {
 
     int createUtilityFiles();
 
-    void createCountOLAP(int page) throws IOException;
+    void createUniqueUIDsOfIndividualPage(int page) throws IOException;
 
     int preprocess();
 

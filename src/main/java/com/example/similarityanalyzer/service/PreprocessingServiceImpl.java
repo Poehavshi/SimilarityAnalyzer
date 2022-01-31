@@ -13,6 +13,7 @@ public class PreprocessingServiceImpl implements PreprocessingService {
     private final String _pathToUniquePagesFile;
     private final String _pathToUniqueTimestampsFile;
     private final String _pathToUniqueTimestampsNormalizedFile;
+    private final String _pathToOLAP;
 
     private static final String COMMA_DELIMITER = ",";
 
@@ -20,22 +21,25 @@ public class PreprocessingServiceImpl implements PreprocessingService {
                                     String pathToOutputFile,
                                     String pathToUniquePagesFile,
                                     String pathToUniqueTimestampsFile,
-                                    String pathToUniqueTimestampsNormalizedFile) {
+                                    String pathToUniqueTimestampsNormalizedFile,
+                                    String pathToOLAP) {
         _pathToInputFile = pathToInputFile;
         _pathToOutputFile = pathToOutputFile;
         _pathToUniquePagesFile = pathToUniquePagesFile;
         _pathToUniqueTimestampsFile = pathToUniqueTimestampsFile;
         _pathToUniqueTimestampsNormalizedFile = pathToUniqueTimestampsNormalizedFile;
+        _pathToOLAP = pathToOLAP;
     }
 
     /**
      * Function to find max length of row in file from pathToFile
+     *
      * @return max length of row
      * @throws IOException when cannot open file
      */
     private int findMaxLengthOfRow(String pathToFile) throws IOException {
         int lineLength, maxLineLength = 0;
-        try (Scanner scanner = new Scanner(new FileInputStream(pathToFile))){
+        try (Scanner scanner = new Scanner(new FileInputStream(pathToFile))) {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
                 lineLength = line.length();
@@ -48,7 +52,7 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         return maxLineLength;
     }
 
-    private void normalizeLengthOfRows(int lengthToNormalize, String pathToInputFile,String pathToOutputFile) throws IOException {
+    private void normalizeLengthOfRows(int lengthToNormalize, String pathToInputFile, String pathToOutputFile) throws IOException {
         try (Scanner scanner = new Scanner(new FileInputStream(pathToInputFile));
              FileOutputStream outputStream = new FileOutputStream(pathToOutputFile)) {
             while (scanner.hasNextLine()) {
@@ -107,35 +111,33 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         try {
             maxLengthOfRow = findMaxLengthOfRow(_pathToInputFile);
             normalizeLengthOfRows(maxLengthOfRow, _pathToInputFile, _pathToOutputFile);
-        }
-        catch (IOException exception){
+        } catch (IOException exception) {
             System.err.println("ERROR!!!");
         }
         return maxLengthOfRow;
     }
 
-    public int createUtilityFiles(){
+    public int createUtilityFiles() {
         int maxLengthOfRowInUniqueTimestamps = 0;
         try {
             createFilesWithUniqueFields();
             maxLengthOfRowInUniqueTimestamps = findMaxLengthOfRow(_pathToUniqueTimestampsFile);
             normalizeLengthOfRows(maxLengthOfRowInUniqueTimestamps, _pathToUniqueTimestampsFile, _pathToUniqueTimestampsNormalizedFile);
-        } catch (IOException exception){
+        } catch (IOException exception) {
             System.err.println(exception.getMessage());
         }
         return maxLengthOfRowInUniqueTimestamps;
     }
 
-    public void createCountOLAP(int page) throws IOException{
-        TLongHashSet uniqueUid = new TLongHashSet();
+    public void createUniqueUIDsOfIndividualPage(int page) throws IOException {
+        TLongHashSet uniqueUIDs = new TLongHashSet();
         long uid = 0;
         int currentPage = 0;
-        int currentTimestamp=0, prevTimestamp=0;
-        int count = 0;
+        int currentTimestamp = 0, prevTimestamp = 0;
 
         try (FileInputStream inputStream = new FileInputStream(_pathToInputFile);
              Scanner scanner = new Scanner(inputStream);
-             FileOutputStream outputStream = new FileOutputStream("test_OLAP.csv")) {
+             FileOutputStream outputStream = new FileOutputStream(_pathToOLAP + "individual/" + page + ".csv")) {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
                 try (Scanner rowScanner = new Scanner(line)) {
@@ -146,26 +148,44 @@ public class PreprocessingServiceImpl implements PreprocessingService {
                         currentTimestamp = rowScanner.nextInt();
                     }
                     if (currentTimestamp != prevTimestamp) {
-                        String newLine = currentTimestamp + "," + count + "\n";
+                        String newLine = currentTimestamp + "," + uniqueUIDs + "\n";
                         byte[] strToBytes = newLine.getBytes();
                         outputStream.write(strToBytes);
+                        uniqueUIDs = new TLongHashSet();
                     }
                     prevTimestamp = currentTimestamp;
-                    if (page == currentPage && !uniqueUid.contains(uid)){
-                        count++;
-                        uniqueUid.add(uid);
+                    if (page == currentPage && !uniqueUIDs.contains(uid)) {
+                        uniqueUIDs.add(uid);
                     }
                 }
             }
         }
     }
 
+    public void createCountOLAP() throws IOException {
+        boolean success = new File(_pathToOLAP + "individual/").mkdirs();
+        try (Scanner scanner = new Scanner(new FileInputStream(_pathToUniquePagesFile))) {
+            while (scanner.hasNext()) {
+                int page = scanner.nextInt();
+                createUniqueUIDsOfIndividualPage(page);
+//                int lengthOfRow = findMaxLengthOfRow(_pathToOLAP + "individual/" + page + ".csv");
+//                normalizeLengthOfRows(lengthOfRow, _pathToOLAP + "individual/" + page + ".csv", _pathToOLAP + "individual/" + page + "n" + ".csv");
+//                File file = new File(_pathToOLAP + "individual/" + page + ".csv");
+//                file.delete();
+            }
+            if (scanner.ioException() != null) {
+                throw scanner.ioException();
+            }
+        }
+    }
+
+
     @Override
     public int preprocess() {
         normalizeLengthOfRows();
         createUtilityFiles();
         try {
-            createCountOLAP(15448);
+            createCountOLAP();
         }
         catch (IOException exception) {
             System.err.println(exception.getMessage());
