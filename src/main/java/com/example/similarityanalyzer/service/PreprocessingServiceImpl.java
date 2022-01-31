@@ -9,26 +9,17 @@ import java.util.Scanner;
 public class PreprocessingServiceImpl implements PreprocessingService {
 
     private final String _pathToInputFile;
-    private final String _pathToOutputFile;
     private final String _pathToUniquePagesFile;
     private final String _pathToUniqueTimestampsFile;
-    private final String _pathToUniqueTimestampsNormalizedFile;
     private final String _pathToOLAP;
 
     private static final String COMMA_DELIMITER = ",";
 
-    public PreprocessingServiceImpl(String pathToInputFile,
-                                    String pathToOutputFile,
-                                    String pathToUniquePagesFile,
-                                    String pathToUniqueTimestampsFile,
-                                    String pathToUniqueTimestampsNormalizedFile,
-                                    String pathToOLAP) {
-        _pathToInputFile = pathToInputFile;
-        _pathToOutputFile = pathToOutputFile;
-        _pathToUniquePagesFile = pathToUniquePagesFile;
-        _pathToUniqueTimestampsFile = pathToUniqueTimestampsFile;
-        _pathToUniqueTimestampsNormalizedFile = pathToUniqueTimestampsNormalizedFile;
-        _pathToOLAP = pathToOLAP;
+    public PreprocessingServiceImpl(String name) {
+        _pathToInputFile = name+"uid_page_timestamp.sorted.csv";
+        _pathToUniquePagesFile = name+"unique_pages.csv";
+        _pathToUniqueTimestampsFile = name+"unique_timestamps.csv";
+        _pathToOLAP = name+"OLAP/";
     }
 
     /**
@@ -77,7 +68,7 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         try (FileInputStream inputStream = new FileInputStream(_pathToInputFile);
              Scanner scanner = new Scanner(inputStream);
              FileOutputStream outputStream = new FileOutputStream(_pathToUniquePagesFile);
-             FileOutputStream timestampsOutputStream = new FileOutputStream(_pathToUniqueTimestampsFile)) {
+             FileOutputStream timestampsOutputStream = new FileOutputStream("raw_"+_pathToUniqueTimestampsFile)) {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
                 try (Scanner rowScanner = new Scanner(line)) {
@@ -104,27 +95,17 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         }
     }
 
-    public int normalizeLengthOfRows() {
-        int maxLengthOfRow = 0;
-        try {
-            maxLengthOfRow = findMaxLengthOfRow(_pathToInputFile);
-            normalizeLengthOfRows(maxLengthOfRow, _pathToInputFile, _pathToOutputFile);
-        } catch (IOException exception) {
-            System.err.println("ERROR!!!");
-        }
-        return maxLengthOfRow;
-    }
 
-    public int createUtilityFiles() {
-        int maxLengthOfRowInUniqueTimestamps = 0;
+    public void createUtilityFiles() {
         try {
             createFilesWithUniqueFields();
-            maxLengthOfRowInUniqueTimestamps = findMaxLengthOfRow(_pathToUniqueTimestampsFile);
-            normalizeLengthOfRows(maxLengthOfRowInUniqueTimestamps, _pathToUniqueTimestampsFile, _pathToUniqueTimestampsNormalizedFile);
+            int maxLengthOfRowInUniqueTimestamps = findMaxLengthOfRow("raw_"+_pathToUniqueTimestampsFile);
+            normalizeLengthOfRows(maxLengthOfRowInUniqueTimestamps, "raw_"+_pathToUniqueTimestampsFile, _pathToUniqueTimestampsFile);
+            File file = new File("raw_"+_pathToUniqueTimestampsFile);
+            file.delete();
         } catch (IOException exception) {
             System.err.println(exception.getMessage());
         }
-        return maxLengthOfRowInUniqueTimestamps;
     }
 
     public void createUniqueUIDsOfIndividualPage(int page) throws IOException {
@@ -179,8 +160,7 @@ public class PreprocessingServiceImpl implements PreprocessingService {
 
 
     @Override
-    public int preprocess() {
-        normalizeLengthOfRows();
+    public void preprocess() {
         createUtilityFiles();
         try {
             createCountOLAP();
@@ -188,6 +168,5 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         catch (IOException exception) {
             System.err.println(exception.getMessage());
         }
-        return 0;
     }
 }

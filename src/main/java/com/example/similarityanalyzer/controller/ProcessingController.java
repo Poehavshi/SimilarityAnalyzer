@@ -1,13 +1,10 @@
 package com.example.similarityanalyzer.controller;
 
 import com.example.similarityanalyzer.service.ProcessingService;
-import gnu.trove.list.array.TIntArrayList;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -20,8 +17,8 @@ public class ProcessingController {
     public ProcessingController(ProcessingService processingService) {
         this.processingService = processingService;
         try {
-            processingService.readUniquePages();
-            processingService.preProcessUniqueTimestamps();
+            processingService.readUniquePages("unique_pages.csv");
+            processingService.preProcessUniqueTimestamps("unique_timestamps.csv");
         }
         catch (IOException exception) {
             System.err.println(exception.getMessage());
@@ -49,7 +46,9 @@ public class ProcessingController {
         } catch (IOException exception){
             System.err.println(exception.getMessage());
         }
-        return new ResponseEntity<>(similarity, HttpStatus.OK);
+        return similarity >= 0
+                ? new ResponseEntity<>(similarity, HttpStatus.OK)
+                : new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
 

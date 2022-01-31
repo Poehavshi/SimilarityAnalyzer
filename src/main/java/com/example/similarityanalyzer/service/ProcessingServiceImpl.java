@@ -18,9 +18,9 @@ public class ProcessingServiceImpl implements ProcessingService{
     private RandomAccessFile file;
 
     @Override
-    public void readUniquePages() throws IOException {
+    public void readUniquePages(String pathToUniquePagesFile) throws IOException {
         pages = new ArrayList<>();
-        try (Scanner scanner = new Scanner(new FileInputStream("test_unique_pages.csv"))) {
+        try (Scanner scanner = new Scanner(new FileInputStream(pathToUniquePagesFile))) {
             while (scanner.hasNext()) {
                 int page = scanner.nextInt();
                 pages.add(page);
@@ -36,8 +36,8 @@ public class ProcessingServiceImpl implements ProcessingService{
         return pages;
     }
 
-    public void preProcessUniqueTimestamps() throws IOException {
-        try (Scanner scanner = new Scanner(new FileInputStream("test_unique_timestamps_normalized.csv"))) {
+    public void preProcessUniqueTimestamps(String pathToUniqueTimestampsFile) throws IOException {
+        try (Scanner scanner = new Scanner(new FileInputStream(pathToUniqueTimestampsFile))) {
             if (scanner.hasNextLine()) {
                 lengthOfRowInUniqueTimestamps = scanner.nextLine().length() + 1;
                 numberOfUniqueTimestamps++;
@@ -50,7 +50,7 @@ public class ProcessingServiceImpl implements ProcessingService{
                 throw scanner.ioException();
             }
         }
-        file = new RandomAccessFile("test_unique_timestamps_normalized.csv", "r");
+        file = new RandomAccessFile(pathToUniqueTimestampsFile, "r");
     }
 
     private int binarySearchTimestamp(int timestamp, boolean findFrom) throws IOException{
@@ -97,15 +97,15 @@ public class ProcessingServiceImpl implements ProcessingService{
 
     @Override
     public double getSimilarity(int page1, int page2, int from, int to) throws IOException{
-        // !TODO create implementation of getting similarity metrics
         // 1) Find from in timestamps
         // 2) Find to in timestamps
-        // 3) Perform union of page1 set
-        // 4) Perform union of page2 set
-        // 5) Find length of set1 and set2
-        // 6) Perform intersection of set1 and set2
-        // 7) Find length of intersection of set1 and set2
+        // 3) Generate page1 set
+        // 4) Generate page2 set
+        // 5) Find length of page1 and page2 sets
+        // 6) Perform intersection of page1 and page2 sets
+        // 7) Find length of intersection of page1 and page2 sets
         // 8) Return result
+
         double result = 0;
         int fromPos = binarySearchTimestamp(from, true);
         int toPos = binarySearchTimestamp(to, false);
