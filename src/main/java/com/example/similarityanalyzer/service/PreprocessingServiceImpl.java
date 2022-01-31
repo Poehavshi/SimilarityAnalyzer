@@ -15,8 +15,8 @@ public class PreprocessingServiceImpl implements PreprocessingService {
 
     private static final String COMMA_DELIMITER = ",";
 
-    public PreprocessingServiceImpl(String name) {
-        _pathToInputFile = name+"uid_page_timestamp.sorted.csv";
+    public PreprocessingServiceImpl(String name, String pathToInputFile) {
+        _pathToInputFile = pathToInputFile;
         _pathToUniquePagesFile = name+"unique_pages.csv";
         _pathToUniqueTimestampsFile = name+"unique_timestamps.csv";
         _pathToOLAP = name+"OLAP/";
