@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 public class ProcessingServiceImpl implements ProcessingService {
     @Override
     public TIntArrayList readUniquePages() {
-        // !TODO Create implementation of finding unique pages
+        // !TODO Create reading unique pages from file
         TIntArrayList list = new TIntArrayList();
         list.add(1);
         list.add(2);

@@ -1,6 +1,7 @@
 package com.example.similarityanalyzer.service;
 
 import gnu.trove.map.hash.TIntByteHashMap;
+import gnu.trove.set.hash.TLongHashSet;
 
 import java.io.*;
 import java.util.Scanner;
@@ -63,6 +64,7 @@ public class PreprocessingServiceImpl implements PreprocessingService {
     }
 
     private void createFilesWithUniqueFields() throws IOException {
+        // !FIXME Use hashSet instead of HashMap
         TIntByteHashMap uniquePages = new TIntByteHashMap();
         TIntByteHashMap uniqueTimestamps = new TIntByteHashMap();
         int page;
@@ -124,10 +126,50 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         return maxLengthOfRowInUniqueTimestamps;
     }
 
+    public void createCountOLAP(int page) throws IOException{
+        TLongHashSet uniqueUid = new TLongHashSet();
+        long uid = 0;
+        int currentPage = 0;
+        int currentTimestamp=0, prevTimestamp=0;
+        int count = 0;
+
+        try (FileInputStream inputStream = new FileInputStream(_pathToInputFile);
+             Scanner scanner = new Scanner(inputStream);
+             FileOutputStream outputStream = new FileOutputStream("test_OLAP.csv")) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                try (Scanner rowScanner = new Scanner(line)) {
+                    rowScanner.useDelimiter(COMMA_DELIMITER);
+                    while (rowScanner.hasNext()) {
+                        uid = rowScanner.nextLong();
+                        currentPage = rowScanner.nextInt();
+                        currentTimestamp = rowScanner.nextInt();
+                    }
+                    if (currentTimestamp != prevTimestamp) {
+                        String newLine = currentTimestamp + "," + count + "\n";
+                        byte[] strToBytes = newLine.getBytes();
+                        outputStream.write(strToBytes);
+                    }
+                    prevTimestamp = currentTimestamp;
+                    if (page == currentPage && !uniqueUid.contains(uid)){
+                        count++;
+                        uniqueUid.add(uid);
+                    }
+                }
+            }
+        }
+    }
+
     @Override
     public int preprocess() {
         normalizeLengthOfRows();
         createUtilityFiles();
+        try {
+            createCountOLAP(15448);
+        }
+        catch (IOException exception) {
+            System.err.println(exception.getMessage());
+        }
         return 0;
     }
 }
