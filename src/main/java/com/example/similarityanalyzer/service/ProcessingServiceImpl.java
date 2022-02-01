@@ -85,7 +85,7 @@ public class ProcessingServiceImpl implements ProcessingService{
         TLongHashSet uniqueUIDs = new TLongHashSet();
         while (fromPos != toPos) {
             int value = Integer.parseInt(file.readLine().replace(" ", ""));
-            try (FileInputStream fileInputStream = new FileInputStream("test_OLAP/individual/" + page + "/" + value);
+            try (FileInputStream fileInputStream = new FileInputStream("OLAP/individual/" + page + "/" + value);
                  ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream)) {
                 uniqueUIDs.readExternal(objectInputStream);
                 allUniqueUIDs.addAll(uniqueUIDs);

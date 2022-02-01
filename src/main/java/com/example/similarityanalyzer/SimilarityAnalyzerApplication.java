@@ -12,7 +12,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class SimilarityAnalyzerApplication {
 
     public static void run(String[] args){
-        PreprocessingService preprocessingService = new PreprocessingServiceImpl("", "uid_page_timestamp.sorted.csv");
+        boolean TEST = true;
+        String pathToInputFile;
+        if (TEST) {
+            pathToInputFile = "test_uid_page_timestamp.sorted.csv";
+        } else {
+            pathToInputFile = "uid_page_timestamp.sorted.csv";
+        }
+        PreprocessingService preprocessingService = new PreprocessingServiceImpl("", pathToInputFile);
         preprocessingService.preprocess();
         SpringApplication.run(SimilarityAnalyzerApplication.class, args);
     }
