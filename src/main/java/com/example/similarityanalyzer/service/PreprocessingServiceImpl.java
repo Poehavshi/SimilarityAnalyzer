@@ -14,6 +14,8 @@ public class PreprocessingServiceImpl implements PreprocessingService {
     private final String _pathToUniqueTimestampsFile;
     private final String _pathToOLAP;
 
+    private final int _timeIntervalInSeconds;
+
     private static final String COMMA_DELIMITER = ",";
 
     public PreprocessingServiceImpl(String name, String pathToInputFile) {
@@ -21,35 +23,31 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         _pathToUniquePagesFile = name+"unique_pages.csv";
         _pathToUniqueTimestampsFile = name+"unique_timestamps.csv";
         _pathToOLAP = name+"OLAP/";
+        _timeIntervalInSeconds = 5;
     }
 
     private void createFilesWithUniqueTimestampsAndPages() throws IOException {
-
-        // FIXME unique timestamps can be created without TIntHashSet, because they are sorted!!
+        // FIXME this method can count number of lines in unique timestamps and return it to controller binary search method
         TIntHashSet uniquePages = new TIntHashSet();
-        TIntHashSet uniqueTimestamps = new TIntHashSet();
 
         try (CSVReader reader = new CSVReader(new FileReader(_pathToInputFile), ',', '"', 1);
-             FileOutputStream pagesOutputStream = new FileOutputStream(_pathToUniquePagesFile);
-             FileOutputStream timestampsOutputStream = new FileOutputStream(_pathToUniqueTimestampsFile)) {
-            int page;
-            int timestamp;
+             BufferedWriter pagesBufferedWriter = new BufferedWriter(new FileWriter(_pathToUniquePagesFile));
+             BufferedWriter timestampBufferedWriter = new BufferedWriter(new FileWriter(_pathToUniqueTimestampsFile))) {
+            int prevRecordedTimestamp = 0;
             String[] values;
             while ((values = reader.readNext()) != null) {
-                page = Integer.parseInt(values[1]);
-                timestamp = Integer.parseInt(values[2]);
-
+                int page = Integer.parseInt(values[1]);
                 if (!uniquePages.contains(page)) {
                     uniquePages.add(page);
-                    String newLine = page + "\n";
-                    byte[] strToBytes = newLine.getBytes();
-                    pagesOutputStream.write(strToBytes);
+                    String pageString = values[1] + "\n";
+                    pagesBufferedWriter.write(pageString);
                 }
-                if (!uniqueTimestamps.contains(timestamp)) {
-                    uniqueTimestamps.add(timestamp);
-                    String newLine = timestamp + "\n";
-                    byte[] strToBytes = newLine.getBytes();
-                    timestampsOutputStream.write(strToBytes);
+
+                int currentTimestamp = Integer.parseInt(values[2]);
+                if (currentTimestamp - prevRecordedTimestamp >= _timeIntervalInSeconds) {
+                    prevRecordedTimestamp = currentTimestamp;
+                    String timestampString = values[2] + "\n";
+                    timestampBufferedWriter.write(timestampString);
                 }
             }
         }
