@@ -4,32 +4,28 @@ import com.example.similarityanalyzer.service.PreprocessingService;
 import com.example.similarityanalyzer.service.PreprocessingServiceImpl;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import java.io.*;
-
-
 
 @SpringBootApplication
 public class SimilarityAnalyzerApplication {
 
-    public static void preprocess(String[] args){
-        boolean TEST = false;
-        String pathToInputFile;
-        if (TEST) {
-            pathToInputFile = "test_uid_page_timestamp.sorted.csv";
-        } else {
-            pathToInputFile = "uid_page_timestamp.sorted.csv";
-        }
-        PreprocessingService preprocessingService = new PreprocessingServiceImpl("", pathToInputFile);
-        //preprocessingService.preprocess();
+    public static void preprocess() {
+        PreprocessingService preprocessingService = new PreprocessingServiceImpl(
+                "uid_page_timestamp.sorted.csv",
+                "unique_pages.csv",
+                "unique_timestamps.csv",
+                "OLAP/",
+                10*60
+        );
+        preprocessingService.preprocess();
     }
 
-    public static void run(String[] args){
-        preprocess(args);
+    public static void run(String[] args) {
+        preprocess();
         SpringApplication.run(SimilarityAnalyzerApplication.class, args);
     }
 
 
-    public static void main(String[] args) throws IOException {
-        preprocess(args);
+    public static void main(String[] args) {
+        run(args);
     }
 }

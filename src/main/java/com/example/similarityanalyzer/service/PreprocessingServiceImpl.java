@@ -9,29 +9,29 @@ import java.util.HashMap;
 
 public class PreprocessingServiceImpl implements PreprocessingService {
 
+    private static final char COMMA_DELIMITER = ',';
     private final String _pathToInputFile;
     private final String _pathToUniquePagesFile;
     private final String _pathToUniqueTimestampsFile;
     private final String _pathToOLAP;
-
     private final int _timeIntervalInSeconds;
 
-    private static final char COMMA_DELIMITER = ',';
-
-    public PreprocessingServiceImpl(String name, String pathToInputFile) {
+    public PreprocessingServiceImpl(String pathToInputFile,
+                                    String pathToUniquePagesFile,
+                                    String pathToUniqueTimestampsFile,
+                                    String pathToOLAP,
+                                    int timeIntervalInSeconds) {
         _pathToInputFile = pathToInputFile;
-        _pathToUniquePagesFile = name+"unique_pages.csv";
-        _pathToUniqueTimestampsFile = name+"unique_timestamps.csv";
-        _pathToOLAP = name+"OLAP/";
-        _timeIntervalInSeconds = 10*60;
+        _pathToUniquePagesFile = pathToUniquePagesFile;
+        _pathToUniqueTimestampsFile = pathToUniqueTimestampsFile;
+        _pathToOLAP = pathToOLAP;
+        _timeIntervalInSeconds = timeIntervalInSeconds;
     }
 
     private void createFilesWithUniqueTimestampsAndPages() throws IOException {
         TIntHashSet uniquePages = new TIntHashSet();
 
-        try (CSVReader reader = new CSVReader(new FileReader(_pathToInputFile), COMMA_DELIMITER, '"', 1);
-             BufferedWriter pagesBufferedWriter = new BufferedWriter(new FileWriter(_pathToUniquePagesFile));
-             BufferedWriter timestampBufferedWriter = new BufferedWriter(new FileWriter(_pathToUniqueTimestampsFile))) {
+        try (CSVReader reader = new CSVReader(new FileReader(_pathToInputFile), COMMA_DELIMITER, '"', 1); BufferedWriter pagesBufferedWriter = new BufferedWriter(new FileWriter(_pathToUniquePagesFile)); BufferedWriter timestampBufferedWriter = new BufferedWriter(new FileWriter(_pathToUniqueTimestampsFile))) {
             int prevRecordedTimestamp = 0;
             String[] values;
             while ((values = reader.readNext()) != null) {
@@ -56,6 +56,7 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         HashMap<Integer, TLongHashSet> pages = new HashMap<>();
         File directory = new File(_pathToOLAP);
         if (!directory.exists()) directory.mkdir();
+
         try (CSVReader reader = new CSVReader(new FileReader(_pathToInputFile), COMMA_DELIMITER, '"', 1)) {
             int prevRecordedTimestamp = 0;
             String[] values;
@@ -77,8 +78,7 @@ public class PreprocessingServiceImpl implements PreprocessingService {
                     for (int pageKey : pages.keySet()) {
                         File pageDirectory = new File(_pathToOLAP + pageKey + "/");
                         if (!pageDirectory.exists()) pageDirectory.mkdir();
-                        try (FileOutputStream fileOutputStream = new FileOutputStream(_pathToOLAP + pageKey + "/" + currentTimestamp);
-                             ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream)) {
+                        try (FileOutputStream fileOutputStream = new FileOutputStream(_pathToOLAP + pageKey + "/" + currentTimestamp); ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream)) {
                             pages.get(pageKey).writeExternal(objectOutputStream);
                         }
                     }
@@ -91,10 +91,9 @@ public class PreprocessingServiceImpl implements PreprocessingService {
     @Override
     public void preprocess() {
         try {
-            //createFilesWithUniqueTimestampsAndPages();
+            createFilesWithUniqueTimestampsAndPages();
             createUniqueUIDsSetsOfPages();
-        }
-        catch (IOException exception) {
+        } catch (IOException exception) {
             System.err.println(exception.getMessage());
         }
     }

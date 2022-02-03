@@ -1,24 +1,21 @@
 package com.example.similarityanalyzer.service;
 
-
 import gnu.trove.set.hash.TLongHashSet;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Scanner;
 
 
 @Service
-public class ProcessingServiceImpl implements ProcessingService{
-
+public class ProcessingServiceImpl implements ProcessingService {
     private ArrayList<Integer> pages;
     private int lengthOfRowInUniqueTimestamps;
-    private int numberOfUniqueTimestamps = 0;
+    private long numberOfUniqueTimestamps = 0;
     private RandomAccessFile file;
+    private String _pathToOlap = "OLAP/";
 
-    @Override
-    public void readUniquePages(String pathToUniquePagesFile) throws IOException {
+    private void readUniquePages(String pathToUniquePagesFile) throws IOException {
         pages = new ArrayList<>();
         try (BufferedReader bufferedReader = new BufferedReader(new FileReader(pathToUniquePagesFile))) {
             String line;
@@ -29,73 +26,88 @@ public class ProcessingServiceImpl implements ProcessingService{
         }
     }
 
+    private void preProcessUniqueTimestamps(String pathToUniqueTimestampsFile) throws IOException {
+        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(pathToUniqueTimestampsFile))) {
+            String line;
+            if ((line = bufferedReader.readLine()) != null) {
+                lengthOfRowInUniqueTimestamps = line.length() + 1;
+            }
+        }
+
+        file = new RandomAccessFile(pathToUniqueTimestampsFile, "r");
+        numberOfUniqueTimestamps = file.length() / lengthOfRowInUniqueTimestamps;
+    }
+
+
+    @Override
+    public void readIndexFiles(String pathToUniquePagesFile, String pathToUniqueTimestampsFile) throws IOException {
+        readUniquePages(pathToUniquePagesFile);
+        preProcessUniqueTimestamps(pathToUniqueTimestampsFile);
+    }
+
     @Override
     public ArrayList<Integer> getUniquePages() {
         return pages;
     }
 
-    public void preProcessUniqueTimestamps(String pathToUniqueTimestampsFile) throws IOException {
-        // !FIXME Find number of lines with File object
-        try (Scanner scanner = new Scanner(new FileInputStream(pathToUniqueTimestampsFile))) {
-            if (scanner.hasNextLine()) {
-                lengthOfRowInUniqueTimestamps = scanner.nextLine().length() + 1;
-                numberOfUniqueTimestamps++;
-            }
-            while (scanner.hasNextLine()){
-                scanner.nextLine();
-                numberOfUniqueTimestamps++;
-            }
-            if (scanner.ioException() != null) {
-                throw scanner.ioException();
-            }
-        }
-        file = new RandomAccessFile(pathToUniqueTimestampsFile, "r");
+    @Override
+    public void setPathToOLAP(String pathToOlap){
+        _pathToOlap = pathToOlap;
     }
 
-    private int binarySearchTimestamp(int timestamp, boolean findFrom) throws IOException{
-        int low = 0, high = numberOfUniqueTimestamps;
-        int mid = 0, value = 0;
+    private long binarySearchTimestamp(int timestamp, boolean findFrom) throws IOException {
+        long low = 0, high = numberOfUniqueTimestamps;
+        long mid = 0, value = 0;
         while (low <= high && high - low > 1) {
-            mid = (high+low)/2;
-            file.seek((long) mid *lengthOfRowInUniqueTimestamps);
-            value = Integer.parseInt(file.readLine().replace(" ",""));
-            if (timestamp < value){
+            mid = (high + low) / 2;
+            file.seek(mid * lengthOfRowInUniqueTimestamps);
+            value = Integer.parseInt(file.readLine());
+            if (timestamp < value) {
                 high = mid;
-            }
-            else if (timestamp > value){
+            } else if (timestamp > value) {
                 low = mid;
-            }
-            else {
+            } else {
                 break;
             }
         }
-        if (timestamp < value && findFrom && mid!=0){
+        if (timestamp < value && findFrom && mid != 0) {
             mid--;
         }
-        if (timestamp > value && !findFrom && mid!=numberOfUniqueTimestamps){
+        if (timestamp > value && !findFrom && mid != numberOfUniqueTimestamps) {
             mid++;
         }
         return mid;
     }
 
-    TLongHashSet getUniqueUIDs(int fromPos, int toPos, int page) throws IOException, ClassNotFoundException{
-        file.seek((long)lengthOfRowInUniqueTimestamps*fromPos);
+    private TLongHashSet getUniqueUIDs(long fromPos, long toPos, int page) throws IOException, ClassNotFoundException {
+        file.seek(lengthOfRowInUniqueTimestamps * fromPos);
         TLongHashSet allUniqueUIDs = new TLongHashSet();
         TLongHashSet uniqueUIDs = new TLongHashSet();
         while (fromPos != toPos) {
-            int value = Integer.parseInt(file.readLine().replace(" ", ""));
-            try (FileInputStream fileInputStream = new FileInputStream("OLAP/individual/" + page + "/" + value);
-                 ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream)) {
-                uniqueUIDs.readExternal(objectInputStream);
-                allUniqueUIDs.addAll(uniqueUIDs);
+            int value = Integer.parseInt(file.readLine());
+            File fileWithSet = new File(_pathToOlap + page + "/" + value);
+            if (fileWithSet.exists()) {
+                try (FileInputStream fileInputStream = new FileInputStream(_pathToOlap + page + "/" + value);
+                     ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream)) {
+                    uniqueUIDs.readExternal(objectInputStream);
+                    allUniqueUIDs.addAll(uniqueUIDs);
+                }
             }
             fromPos++;
         }
         return allUniqueUIDs;
     }
 
+    public double getJaccardIndex(TLongHashSet set1, TLongHashSet set2) {
+        int set1Size = set1.size();
+        int set2Size = set2.size();
+        set1.retainAll(set2);
+        int intersectionSize = set1.size();
+        return (double) intersectionSize / (set1Size + set2Size - intersectionSize);
+    }
+
     @Override
-    public double getSimilarity(int page1, int page2, int from, int to) throws IOException{
+    public double getSimilarity(int page1, int page2, int from, int to) throws IOException {
         // 1) Find from in timestamps
         // 2) Find to in timestamps
         // 3) Generate page1 set
@@ -106,18 +118,14 @@ public class ProcessingServiceImpl implements ProcessingService{
         // 8) Return result
 
         double result = 0;
-        int fromPos = binarySearchTimestamp(from, true);
-        int toPos = binarySearchTimestamp(to, false);
+        long fromPos = binarySearchTimestamp(from, true);
+        long toPos = binarySearchTimestamp(to, false);
 
         try {
             TLongHashSet page1Set = getUniqueUIDs(fromPos, toPos, page1);
             TLongHashSet page2Set = getUniqueUIDs(fromPos, toPos, page2);
-            int page1SetSize = page1Set.size();
-            int page2SetSize = page2Set.size();
-            page1Set.retainAll(page2Set);
-            int intersectionSetSize = page1Set.size();
-            result = (double) intersectionSetSize / (page1SetSize+page2SetSize-intersectionSetSize);
-        } catch (Exception exception){
+            result = getJaccardIndex(page1Set, page2Set);
+        } catch (Exception exception) {
             System.err.println(exception.getMessage());
         }
 

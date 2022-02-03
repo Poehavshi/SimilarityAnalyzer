@@ -4,7 +4,10 @@ import com.example.similarityanalyzer.service.ProcessingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -17,10 +20,9 @@ public class ProcessingController {
     public ProcessingController(ProcessingService processingService) {
         this.processingService = processingService;
         try {
-            processingService.readUniquePages("unique_pages.csv");
-            processingService.preProcessUniqueTimestamps("unique_timestamps.csv");
-        }
-        catch (IOException exception) {
+            processingService.readIndexFiles("unique_pages.csv", "unique_timestamps.csv");
+            processingService.setPathToOLAP("OLAP/");
+        } catch (IOException exception) {
             System.err.println(exception.getMessage());
         }
     }
@@ -30,7 +32,7 @@ public class ProcessingController {
         ArrayList<Integer> pages;
         pages = processingService.getUniquePages();
 
-        return pages != null &&  !pages.isEmpty()
+        return pages != null && !pages.isEmpty()
                 ? new ResponseEntity<>(pages, HttpStatus.OK)
                 : new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
@@ -43,7 +45,7 @@ public class ProcessingController {
         double similarity = -1;
         try {
             similarity = processingService.getSimilarity(page1, page2, from, to);
-        } catch (IOException exception){
+        } catch (IOException exception) {
             System.err.println(exception.getMessage());
         }
         return similarity >= 0
