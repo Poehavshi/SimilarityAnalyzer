@@ -20,13 +20,11 @@ public class ProcessingServiceImpl implements ProcessingService{
     @Override
     public void readUniquePages(String pathToUniquePagesFile) throws IOException {
         pages = new ArrayList<>();
-        try (Scanner scanner = new Scanner(new FileInputStream(pathToUniquePagesFile))) {
-            while (scanner.hasNext()) {
-                int page = scanner.nextInt();
+        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(pathToUniquePagesFile))) {
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                int page = Integer.parseInt(line);
                 pages.add(page);
-            }
-            if (scanner.ioException() != null) {
-                throw scanner.ioException();
             }
         }
     }
@@ -37,6 +35,7 @@ public class ProcessingServiceImpl implements ProcessingService{
     }
 
     public void preProcessUniqueTimestamps(String pathToUniqueTimestampsFile) throws IOException {
+        // !FIXME Find number of lines with File object
         try (Scanner scanner = new Scanner(new FileInputStream(pathToUniqueTimestampsFile))) {
             if (scanner.hasNextLine()) {
                 lengthOfRowInUniqueTimestamps = scanner.nextLine().length() + 1;
@@ -109,6 +108,7 @@ public class ProcessingServiceImpl implements ProcessingService{
         double result = 0;
         int fromPos = binarySearchTimestamp(from, true);
         int toPos = binarySearchTimestamp(to, false);
+
         try {
             TLongHashSet page1Set = getUniqueUIDs(fromPos, toPos, page1);
             TLongHashSet page2Set = getUniqueUIDs(fromPos, toPos, page2);

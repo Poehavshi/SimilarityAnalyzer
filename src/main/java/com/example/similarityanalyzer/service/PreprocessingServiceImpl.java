@@ -5,7 +5,7 @@ import gnu.trove.set.hash.TIntHashSet;
 import gnu.trove.set.hash.TLongHashSet;
 
 import java.io.*;
-import java.util.Scanner;
+import java.util.HashMap;
 
 public class PreprocessingServiceImpl implements PreprocessingService {
 
@@ -16,21 +16,20 @@ public class PreprocessingServiceImpl implements PreprocessingService {
 
     private final int _timeIntervalInSeconds;
 
-    private static final String COMMA_DELIMITER = ",";
+    private static final char COMMA_DELIMITER = ',';
 
     public PreprocessingServiceImpl(String name, String pathToInputFile) {
         _pathToInputFile = pathToInputFile;
         _pathToUniquePagesFile = name+"unique_pages.csv";
         _pathToUniqueTimestampsFile = name+"unique_timestamps.csv";
         _pathToOLAP = name+"OLAP/";
-        _timeIntervalInSeconds = 5;
+        _timeIntervalInSeconds = 10*60;
     }
 
     private void createFilesWithUniqueTimestampsAndPages() throws IOException {
-        // FIXME this method can count number of lines in unique timestamps and return it to controller binary search method
         TIntHashSet uniquePages = new TIntHashSet();
 
-        try (CSVReader reader = new CSVReader(new FileReader(_pathToInputFile), ',', '"', 1);
+        try (CSVReader reader = new CSVReader(new FileReader(_pathToInputFile), COMMA_DELIMITER, '"', 1);
              BufferedWriter pagesBufferedWriter = new BufferedWriter(new FileWriter(_pathToUniquePagesFile));
              BufferedWriter timestampBufferedWriter = new BufferedWriter(new FileWriter(_pathToUniqueTimestampsFile))) {
             int prevRecordedTimestamp = 0;
@@ -53,63 +52,47 @@ public class PreprocessingServiceImpl implements PreprocessingService {
         }
     }
 
-    public void createUniqueUIDsOfIndividualPage(int page) throws IOException {
-        // !FIXME create indexes for several pages like 50 pages or greater?
-        TLongHashSet uniqueUIDs = new TLongHashSet();
-        long uid = 0;
-        int currentPage = 0;
-        int currentTimestamp = 0, prevTimestamp = 0;
-        if (new File(_pathToOLAP + "individual/" + page + "/").mkdirs()) {
-            try (FileInputStream inputStream = new FileInputStream(_pathToInputFile);
-                 Scanner scanner = new Scanner(inputStream)) {
-                while (scanner.hasNextLine()) {
-                    String line = scanner.nextLine();
-                    try (Scanner rowScanner = new Scanner(line)) {
-                        rowScanner.useDelimiter(COMMA_DELIMITER);
-                        while (rowScanner.hasNext()) {
-                            uid = rowScanner.nextLong();
-                            currentPage = rowScanner.nextInt();
-                            currentTimestamp = rowScanner.nextInt();
-                        }
-                        if (currentTimestamp != prevTimestamp) {
-                            try (FileOutputStream fileOutputStream = new FileOutputStream(_pathToOLAP + "individual/" + page + "/" + currentTimestamp);
-                                 ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream)) {
-                                uniqueUIDs.writeExternal(objectOutputStream);
-                                uniqueUIDs = new TLongHashSet();
-                            } catch (Exception exception) {
-                                exception.printStackTrace();
-                            }
-                        }
-                        prevTimestamp = currentTimestamp;
-                        if (page == currentPage && !uniqueUIDs.contains(uid)) {
-                            uniqueUIDs.add(uid);
+    private void createUniqueUIDsSetsOfPages() throws IOException {
+        HashMap<Integer, TLongHashSet> pages = new HashMap<>();
+        File directory = new File(_pathToOLAP);
+        if (!directory.exists()) directory.mkdir();
+        try (CSVReader reader = new CSVReader(new FileReader(_pathToInputFile), COMMA_DELIMITER, '"', 1)) {
+            int prevRecordedTimestamp = 0;
+            String[] values;
+            while ((values = reader.readNext()) != null) {
+                long uid = Long.parseLong(values[0]);
+                int page = Integer.parseInt(values[1]);
+
+                if (pages.containsKey(page)) {
+                    pages.get(page).add(uid);
+                } else {
+                    TLongHashSet uniqueUIDs = new TLongHashSet();
+                    uniqueUIDs.add(uid);
+                    pages.put(page, uniqueUIDs);
+                }
+
+                int currentTimestamp = Integer.parseInt(values[2]);
+                if (currentTimestamp - prevRecordedTimestamp >= _timeIntervalInSeconds) {
+                    prevRecordedTimestamp = currentTimestamp;
+                    for (int pageKey : pages.keySet()) {
+                        File pageDirectory = new File(_pathToOLAP + pageKey + "/");
+                        if (!pageDirectory.exists()) pageDirectory.mkdir();
+                        try (FileOutputStream fileOutputStream = new FileOutputStream(_pathToOLAP + pageKey + "/" + currentTimestamp);
+                             ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream)) {
+                            pages.get(pageKey).writeExternal(objectOutputStream);
                         }
                     }
+                    pages = new HashMap<>();
                 }
             }
         }
     }
-
-    public void createCountOLAP() throws IOException {
-        if (new File(_pathToOLAP + "individual/").mkdirs()) {
-            try (Scanner scanner = new Scanner(new FileInputStream(_pathToUniquePagesFile))) {
-                while (scanner.hasNext()) {
-                    int page = scanner.nextInt();
-                    createUniqueUIDsOfIndividualPage(page);
-                }
-                if (scanner.ioException() != null) {
-                    throw scanner.ioException();
-                }
-            }
-        }
-    }
-
 
     @Override
     public void preprocess() {
         try {
-            createFilesWithUniqueTimestampsAndPages();
-            createCountOLAP();
+            //createFilesWithUniqueTimestampsAndPages();
+            createUniqueUIDsSetsOfPages();
         }
         catch (IOException exception) {
             System.err.println(exception.getMessage());

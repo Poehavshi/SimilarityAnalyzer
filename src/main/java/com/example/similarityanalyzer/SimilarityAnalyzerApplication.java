@@ -10,8 +10,9 @@ import java.io.*;
 
 @SpringBootApplication
 public class SimilarityAnalyzerApplication {
+
     public static void preprocess(String[] args){
-        boolean TEST = true;
+        boolean TEST = false;
         String pathToInputFile;
         if (TEST) {
             pathToInputFile = "test_uid_page_timestamp.sorted.csv";
@@ -19,7 +20,7 @@ public class SimilarityAnalyzerApplication {
             pathToInputFile = "uid_page_timestamp.sorted.csv";
         }
         PreprocessingService preprocessingService = new PreprocessingServiceImpl("", pathToInputFile);
-        preprocessingService.preprocess();
+        //preprocessingService.preprocess();
     }
 
     public static void run(String[] args){
@@ -29,9 +30,6 @@ public class SimilarityAnalyzerApplication {
 
 
     public static void main(String[] args) throws IOException {
-        //testOutOfMemory();
-        //preprocess(args);
-
-
+        preprocess(args);
     }
 }
